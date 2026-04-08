@@ -8,32 +8,14 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+    <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #13161c; margin: 0; overflow: hidden; }
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #2b2f3a; border-radius: 10px; }
     </style>
-    
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        qBackground: '#13161c',
-                        qHeader: '#1c1f26',
-                        qGreen: '#00d346',
-                        qRed: '#ff5500',
-                        qBlue: '#00DDFF',
-                        qGray: '#2b2f3a',
-                    }
-                }
-            }
-        }
-    </script>
 </head>
 <body>
     <div id="root"></div>
@@ -42,54 +24,56 @@
         const { useState, useEffect, useRef } = React;
 
         function App() {
-            const chartRef = useRef();
+            const chartContainerRef = useRef();
+            const chartRef = useRef(null);
             const [balance, setBalance] = useState(24500.75);
             const [showAdmin, setShowAdmin] = useState(false);
             const [accountType, setAccountType] = useState('Live');
             const [forceResult, setForceResult] = useState('random');
-            const [investment, setInvestment] = useState(1000);
             const [trades, setTrades] = useState([
-                { id: 1, pair: 'BTC/USDT', type: 'UP', amount: 1000, profit: '+1850', time: '18:20:05', status: 'won' },
-                { id: 2, pair: 'ETH/USDT', type: 'DOWN', amount: 500, profit: '+925', time: '18:18:12', status: 'won' }
+                { id: 1, pair: 'BTC/USDT', type: 'UP', amount: 1000, profit: '+$1850', status: 'won' }
             ]);
 
             // SECRET KEYBIND (Ctrl + Shift + H)
             useEffect(() => {
                 const handleKey = (e) => {
-                    if (e.ctrlKey && e.shiftKey && e.key === 'H') {
-                        setShowAdmin(prev => !prev);
-                    }
+                    if (e.ctrlKey && e.shiftKey && e.key === 'H') setShowAdmin(prev => !prev);
                 };
                 window.addEventListener('keydown', handleKey);
+                if (window.lucide) lucide.createIcons();
                 return () => window.removeEventListener('keydown', handleKey);
             }, []);
 
-            // CHART ENGINE
+            // BULLETPROOF CHART LOGIC
             useEffect(() => {
-                const chart = LightweightCharts.createChart(chartRef.current, {
+                if (!chartContainerRef.current) return;
+
+                const chart = LightweightCharts.createChart(chartContainerRef.current, {
                     layout: { background: { color: '#1c1f26' }, textColor: '#d1d4dc' },
                     grid: { vertLines: { color: '#2b2f3a' }, horzLines: { color: '#2b2f3a' } },
-                    width: chartRef.current.clientWidth,
-                    height: 550,
+                    width: chartContainerRef.current.clientWidth,
+                    height: chartContainerRef.current.clientHeight || 500,
                     timeScale: { borderVisible: false },
                 });
 
+                // The fix: explicit series creation
                 const candleSeries = chart.addCandlestickSeries({
                     upColor: '#00d346', downColor: '#ff5500', borderVisible: false,
                     wickUpColor: '#00d346', wickDownColor: '#ff5500',
                 });
 
+                chartRef.current = chart;
+
                 let lastPrice = 68432.10;
                 const interval = setInterval(() => {
-                    const jitter = (Math.random() - 0.5) * 8;
-                    lastPrice += jitter;
+                    lastPrice += (Math.random() - 0.5) * 10;
                     candleSeries.update({ 
                         time: Math.floor(Date.now() / 1000), 
-                        open: lastPrice, high: lastPrice + 3, low: lastPrice - 3, close: lastPrice + 1 
+                        open: lastPrice, high: lastPrice + 5, low: lastPrice - 5, close: lastPrice + 2 
                     });
                 }, 1000);
 
-                const handleResize = () => chart.applyOptions({ width: chartRef.current.clientWidth });
+                const handleResize = () => chart.applyOptions({ width: chartContainerRef.current.clientWidth });
                 window.addEventListener('resize', handleResize);
 
                 return () => { clearInterval(interval); chart.remove(); window.removeEventListener('resize', handleResize); };
@@ -97,133 +81,84 @@
 
             const executeTrade = (type) => {
                 const id = Date.now();
-                setTrades(t => [{ id, pair: 'BTC/USDT', type, amount: investment, profit: '...', time: new Date().toLocaleTimeString(), status: 'pending' }, ...t]);
+                setTrades(t => [{ id, pair: 'BTC/USDT', type, amount: 1000, profit: '...', status: 'pending' }, ...t]);
 
                 setTimeout(() => {
-                    const isWin = forceResult === 'win' || (forceResult === 'random' && Math.random() > 0.3);
+                    const isWin = forceResult === 'win' || (forceResult === 'random' && Math.random() > 0.4);
                     if (isWin) {
-                        setBalance(b => b + (investment * 0.85));
-                        setTrades(t => t.map(x => x.id === id ? { ...x, profit: '+$' + (investment * 1.85), status: 'won' } : x));
+                        setBalance(b => b + 850);
+                        setTrades(t => t.map(x => x.id === id ? { ...x, profit: '+$1850', status: 'won' } : x));
                     } else {
-                        setBalance(b => b - investment);
-                        setTrades(t => t.map(x => x.id === id ? { ...x, profit: '-$' + investment, status: 'lost' } : x));
+                        setBalance(b => b - 1000);
+                        setTrades(t => t.map(x => x.id === id ? { ...x, profit: '-$1000', status: 'lost' } : x));
                     }
-                }, 2500);
+                }, 2000);
             };
 
             return (
-                <div className="flex flex-col h-screen text-white select-none">
-                    {/* ADMIN PANEL */}
+                <div className="flex flex-col h-screen text-white select-none bg-[#13161c]">
+                    {/* HIDDEN ADMIN PANEL */}
                     {showAdmin && (
-                        <div className="fixed top-20 left-24 z-[999] bg-slate-900 border-2 border-cyan-500 p-6 rounded-2xl shadow-[0_0_30px_rgba(0,221,255,0.3)] w-72">
-                            <h2 className="text-cyan-400 font-black mb-4 flex items-center gap-2">
-                                <i data-lucide="shield-alert" className="w-4 h-4"></i> Z-MODE ADMIN
-                            </h2>
+                        <div className="fixed top-20 left-24 z-[999] bg-slate-900 border-2 border-blue-500 p-6 rounded-2xl shadow-2xl w-72">
+                            <h2 className="text-blue-400 font-black mb-4 uppercase text-xs tracking-widest">God Mode Console</h2>
                             <div className="space-y-4">
-                                <div>
-                                    <label className="text-[10px] text-gray-500 font-bold uppercase">Update Balance</label>
-                                    <input type="number" className="w-full bg-black p-2 rounded text-sm mt-1 border border-gray-700 focus:border-cyan-500 outline-none" onChange={(e) => setBalance(Number(e.target.value))} />
-                                </div>
+                                <input type="number" placeholder="Set Balance" className="w-full bg-black p-2 rounded text-sm border border-gray-700" onChange={(e) => setBalance(Number(e.target.value))} />
                                 <select className="w-full bg-black p-2 rounded text-sm border border-gray-700" onChange={(e) => setForceResult(e.target.value)}>
-                                    <option value="random">Random Outcome</option>
-                                    <option value="win">Force Next Win</option>
-                                    <option value="loss">Force Next Loss</option>
+                                    <option value="random">Random</option>
+                                    <option value="win">Always Win</option>
+                                    <option value="loss">Always Loss</option>
                                 </select>
-                                <button onClick={() => setAccountType(accountType === 'Live' ? 'Demo' : 'Live')} className="w-full bg-cyan-600 hover:bg-cyan-500 p-2 rounded text-xs font-black transition">TOGGLE {accountType === 'Live' ? 'DEMO' : 'REAL'}</button>
-                                <p className="text-[9px] text-gray-500 text-center italic">Ctrl+Shift+H to Hide Panel</p>
+                                <button onClick={() => setAccountType(at => at === 'Live' ? 'Demo' : 'Live')} className="w-full bg-blue-600 p-2 rounded text-xs font-black">SWITCH TO {accountType === 'Live' ? 'DEMO' : 'LIVE'}</button>
                             </div>
                         </div>
                     )}
 
                     {/* HEADER */}
-                    <header className="h-16 flex items-center justify-between px-8 bg-qHeader border-b border-gray-800">
-                        <div className="flex items-center gap-12">
-                            <span className="text-3xl font-black text-qBlue italic tracking-tighter">QUOTEX</span>
-                            <nav className="flex gap-8 text-[11px] font-bold uppercase tracking-widest text-gray-500">
-                                <span className="text-white border-b-2 border-qBlue pb-5 cursor-pointer">Trade</span>
-                                <span className="hover:text-white cursor-pointer transition">Market</span>
-                                <span className="hover:text-white cursor-pointer transition">Signals</span>
-                            </nav>
-                        </div>
+                    <header className="h-16 flex items-center justify-between px-8 bg-[#1c1f26] border-b border-gray-800">
+                        <span className="text-3xl font-black text-[#00DDFF] italic">QUOTEX</span>
                         <div className="flex items-center gap-6">
-                            <div className="bg-qGray px-5 py-2 rounded-lg flex items-center gap-4 border border-gray-700 cursor-pointer hover:border-gray-500 transition">
+                            <div className="bg-[#2b2f3a] px-5 py-2 rounded-lg border border-gray-700 flex items-center gap-4">
                                 <div className="text-right">
-                                    <p className="text-[9px] text-gray-500 font-black uppercase tracking-tighter">{accountType} Account</p>
-                                    <p className="text-lg font-black text-qGreen">${balance.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+                                    <p className="text-[9px] text-gray-500 font-bold uppercase">{accountType} Account</p>
+                                    <p className="text-lg font-black text-[#00d346]">${balance.toLocaleString()}</p>
                                 </div>
-                                <div className="bg-gray-700 p-1 rounded"><i data-lucide="chevron-down" className="w-4 h-4"></i></div>
+                                <i data-lucide="chevron-down" className="w-4 h-4 text-gray-400"></i>
                             </div>
-                            <button className="bg-blue-600 hover:bg-blue-500 px-8 py-2.5 rounded-lg font-black text-sm transition-all shadow-lg shadow-blue-900/30">DEPOSIT</button>
+                            <button className="bg-blue-600 px-8 py-2.5 rounded-lg font-black text-sm">DEPOSIT</button>
                         </div>
                     </header>
 
                     <div className="flex flex-1 overflow-hidden">
-                        {/* SIDEBAR */}
-                        <aside className="w-20 bg-qHeader border-r border-gray-800 flex flex-col items-center py-8 gap-10 text-gray-500">
-                            <div className="text-qBlue p-2 bg-blue-500/10 rounded-xl"><i data-lucide="trending-up" className="w-6 h-6"></i></div>
-                            <i data-lucide="history" className="hover:text-white cursor-pointer w-6 h-6"></i>
-                            <i data-lucide="wallet" className="hover:text-white cursor-pointer w-6 h-6"></i>
-                            <i data-lucide="user-round" className="hover:text-white cursor-pointer w-6 h-6"></i>
+                        <aside className="w-20 bg-[#1c1f26] border-r border-gray-800 flex flex-col items-center py-8 gap-10 text-gray-400">
+                            <i data-lucide="trending-up" className="text-blue-400"></i>
+                            <i data-lucide="history"></i>
+                            <i data-lucide="wallet"></i>
                         </aside>
 
-                        {/* CHART */}
                         <main className="flex-1 p-4 relative bg-[#13161c]">
-                            <div className="absolute top-10 left-10 z-10 bg-black/40 backdrop-blur-lg p-4 rounded-xl border border-white/10 shadow-2xl">
-                                <p className="text-[10px] text-gray-400 font-bold mb-1">BTC/USDT <span className="text-qGreen">+0.84%</span></p>
-                                <h2 className="text-3xl font-black tracking-tight">68,432.10</h2>
-                            </div>
-                            <div ref={chartRef} className="w-full h-full rounded-2xl overflow-hidden border border-gray-800 shadow-inner" />
+                            <div ref={chartContainerRef} className="w-full h-full rounded-2xl overflow-hidden border border-gray-800" />
                         </main>
 
-                        {/* TRADING PANEL */}
-                        <aside className="w-80 bg-qHeader border-l border-gray-800 p-6 flex flex-col">
-                            <div className="space-y-4">
-                                <div className="bg-qGray p-4 rounded-xl border border-gray-700">
-                                    <label className="text-[10px] text-gray-500 font-black uppercase mb-1 block">Amount</label>
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-2xl font-black">${investment}</span>
-                                        <div className="flex flex-col gap-1">
-                                            <button onClick={() => setInvestment(i => i + 100)} className="bg-gray-700 w-6 h-6 flex items-center justify-center rounded text-xs">+</button>
-                                            <button onClick={() => setInvestment(i => Math.max(0, i - 100))} className="bg-gray-700 w-6 h-6 flex items-center justify-center rounded text-xs">-</button>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="bg-qGray p-4 rounded-xl border border-gray-700 flex justify-between items-center">
-                                    <div>
-                                        <label className="text-[10px] text-gray-500 font-black uppercase mb-1 block">Time</label>
-                                        <span className="text-2xl font-black italic tracking-widest">00:30</span>
-                                    </div>
-                                    <i data-lucide="clock" className="text-gray-500 w-5 h-5"></i>
-                                </div>
+                        <aside className="w-80 bg-[#1c1f26] border-l border-gray-800 p-6 flex flex-col gap-6">
+                            <div className="bg-[#2b2f3a] p-4 rounded-xl border border-gray-700">
+                                <p className="text-[10px] text-gray-500 font-bold uppercase mb-1">Investment</p>
+                                <p className="text-2xl font-black">$1,000</p>
                             </div>
-
-                            <div className="mt-8 space-y-4">
-                                <button onClick={() => executeTrade('UP')} className="w-full bg-qGreen hover:brightness-110 h-28 rounded-2xl flex flex-col items-center justify-center transition-all active:scale-95 shadow-xl shadow-green-900/20">
-                                    <i data-lucide="arrow-up" className="w-10 h-10 mb-1"></i>
-                                    <span className="text-2xl font-black">UP</span>
-                                    <span className="text-[10px] font-bold text-green-900">Profit: 85%</span>
-                                </button>
-                                <button onClick={() => executeTrade('DOWN')} className="w-full bg-qRed hover:brightness-110 h-28 rounded-2xl flex flex-col items-center justify-center transition-all active:scale-95 shadow-xl shadow-red-900/20">
-                                    <i data-lucide="arrow-down" className="w-10 h-10 mb-1"></i>
-                                    <span className="text-2xl font-black">DOWN</span>
-                                    <span className="text-[10px] font-bold text-red-900">Profit: 85%</span>
-                                </button>
-                            </div>
-
-                            {/* TRADE HISTORY */}
-                            <div className="mt-8 flex-1 overflow-y-auto pr-2 custom-scrollbar">
-                                <h4 className="text-[10px] font-black text-gray-500 uppercase mb-4 tracking-widest flex items-center gap-2">
-                                    <i data-lucide="list-checks" className="w-3 h-3"></i> Trade History
-                                </h4>
+                            <button onClick={() => executeTrade('UP')} className="w-full bg-[#00d346] h-28 rounded-2xl flex flex-col items-center justify-center transition-all active:scale-95 shadow-lg shadow-green-900/20">
+                                <span className="text-2xl font-black">UP</span>
+                                <span className="text-[10px] font-bold opacity-60">Profit: 85%</span>
+                            </button>
+                            <button onClick={() => executeTrade('DOWN')} className="w-full bg-[#ff5500] h-28 rounded-2xl flex flex-col items-center justify-center transition-all active:scale-95 shadow-lg shadow-red-900/20">
+                                <span className="text-2xl font-black">DOWN</span>
+                                <span className="text-[10px] font-bold opacity-60">Profit: 85%</span>
+                            </button>
+                            
+                            <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                                <p className="text-[10px] font-bold text-gray-500 uppercase mb-4">Trades</p>
                                 {trades.map(t => (
-                                    <div key={t.id} className="flex justify-between items-center mb-3 bg-black/30 p-3 rounded-xl border-l-4 border-l-blue-500 animate-slide-in">
-                                        <div>
-                                            <p className="text-[10px] font-black">{t.pair} • {t.type}</p>
-                                            <p className="text-[8px] text-gray-600 font-bold uppercase">{t.time}</p>
-                                        </div>
-                                        <p className={`font-black text-sm ${t.status === 'won' ? 'text-qGreen' : t.status === 'lost' ? 'text-qRed' : 'text-gray-400'}`}>
-                                            {t.profit}
-                                        </p>
+                                    <div key={t.id} className="flex justify-between mb-3 bg-black/20 p-3 rounded-lg border-l-4 border-blue-500">
+                                        <span className="text-[10px] font-bold">{t.type}</span>
+                                        <span className={`font-black ${t.status === 'won' ? 'text-green-400' : 'text-red-400'}`}>{t.profit}</span>
                                     </div>
                                 ))}
                             </div>
@@ -235,9 +170,6 @@
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
-        
-        // Initialize Lucide icons after render
-        setTimeout(() => lucide.createIcons(), 500);
     </script>
 </body>
 </html>
